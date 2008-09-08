@@ -15,5 +15,7 @@ META.yml
 README
 t/00-load.t
 t/01-parser.t
+t/02-dbi.t
+t/03-orm.t
 t/pod-coverage.t
 t/pod.t

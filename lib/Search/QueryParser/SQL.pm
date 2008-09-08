@@ -10,7 +10,7 @@ use base qw( Search::QueryParser );
 use Search::QueryParser::SQL::Query;
 use Scalar::Util qw( blessed );
 
-our $VERSION = '0.001';
+our $VERSION = '0.002';
 
 =head1 NAME
 
@@ -28,6 +28,19 @@ Search::QueryParser::SQL - turn free-text queries into SQL WHERE clauses
  # prints:
  # (first_name='joe' OR last_name='joe' OR email='joe') AND \
  # (first_name='smith' OR last_name='smith' OR email='smith')
+ 
+ # for the DBI
+ my $query = $parser->parse('foo');
+ print $query->dbi->[0];
+ # prints
+ # (first_name=? OR last_name=? OR email=?)
+ 
+ # wildcard support
+ my $query = $parser->parse('foo*');
+ print $query;
+ # prints
+ # (first_name ILIKE 'foo%' OR last_name ILIKE 'foo%' OR email ILIKE 'foo%')
+
 
 =head1 DESCRIPTION
 
@@ -60,9 +73,10 @@ May be a hash or array ref of column names. If a hash ref,
 the keys should be column names and the values the column type
 (e.g., int, varchar, etc.).
 
-The values are used for determining correct quoting in strings.
-If passed as an array ref, all column arguments will be quoted
-(treated like strings).
+The values are used for determining correct quoting in strings
+and for operator selection with wildcards.
+If passed as an array ref, all column arguments will be 
+treated like 'char'.
 
 =item default_column
 
@@ -87,12 +101,43 @@ Set this arg to a quote value. Example:
             );
  # query will look like `foo` and `bar`
 
+=item fuzzify
+
+I<Optional>
+
+Treat all query keywords as if they had wildcards attached to the end.
+E.g., C<foo> would be treated like C<foo*>.
+
+=item strict
+
+I<Optional>
+
+Croak if any of the column names in I<string> are not among the supplied
+column names in I<columns>.
+
+=item like
+
+I<Optional>
+
+The SQL operator to use for wildcard query strings. The default is
+C<ILIKE>.
+
 =back
 
 =cut
 
 sub new {
-    my $self = shift->SUPER::new(@_);
+    my $self = shift->SUPER::new(
+        @_,
+
+        # add the dot for table.column
+        'rxField' => qr/[\.\w]+/,
+
+        # make and/or/not case insensitive
+        'rxAnd' => qr/AND|ET|UND|E/i,
+        'rxOr'  => qr/OR|OU|ODER|O/i,
+        'rxNot' => qr/NOT|PAS|NICHT|NON/i,
+    );
     my $args = ref $_[0] eq 'HASH' ? $_[0] : {@_};
     $self->{columns} = delete $args->{columns} or croak "columns required";
     my $reftype = ref( $self->{columns} );
@@ -101,31 +146,28 @@ sub new {
     }
 
     # TODO other sanity checks?
+
+    # store columns as HASH
     if ( $reftype eq 'ARRAY' ) {
-        for my $col ( @{ $self->{columns} } ) {
-            $self->{_is_int}->{$col} = 0;
-        }
+        $self->{columns} = { map { $_ => 'char' } @{ $self->{columns} } };
     }
-    else {
-        for my $col ( keys %{ $self->{columns} } ) {
-            $self->{_is_int}->{$col} = 1
-                if (
-                $self->{columns}->{$col} =~ m/int|float|bool|time|date/ );
-        }
+
+    for my $col ( keys %{ $self->{columns} } ) {
+        $self->{_is_int}->{$col} = 1
+            if ( $self->{columns}->{$col} =~ m/int|float|bool|time|date/ );
     }
 
     $self->{default_column} = delete $args->{default_column}
-        || (
-          $reftype eq 'ARRAY'
-        ? $self->{columns}
-        : [ keys %{ $self->{columns} } ]
-        );
+        || [ sort keys %{ $self->{columns} } ];
 
     if ( !ref( $self->{default_column} ) ) {
         $self->{default_column} = [ $self->{default_column} ];
     }
 
     $self->{quote_columns} = delete $args->{quote_columns} || '';
+    $self->{fuzzify}       = delete $args->{fuzzify}       || 0;
+    $self->{strict}        = delete $args->{strict}        || 0;
+    $self->{like}          = delete $args->{like}          || 'ILIKE';
 
     #dump $self;
 
@@ -144,7 +186,21 @@ sub parse {
     my $query = $self->SUPER::parse(@_)
         or croak "query parse failed: " . $self->err;
 
-    $query->{_parser} = $self;
+    if ( $self->{strict} ) {
+        for my $key ( keys %$query ) {
+            next unless defined $query->{$key};
+            for my $subq ( @{ $query->{$key} } ) {
+                next unless $subq->{field};
+                unless ( exists $self->{columns}->{ $subq->{field} } ) {
+                    croak "invalid column name: $subq->{field}";
+                }
+            }
+        }
+    }
+
+    $query->{_parser}       = $self;
+    $query->{_string}       = $_[0];
+    $query->{_implicit_AND} = $_[1] || 0;
 
     #dump $query;
     return bless( $query, 'Search::QueryParser::SQL::Query' );

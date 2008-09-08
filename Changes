@@ -1,5 +1,16 @@
 Revision history for Search-QueryParser-SQL
 
-0.01    xxx
+0.001   5 Sept 2008
         First version, released on an unsuspecting world.
+
+0.002   7 Sept 2008
+        * added strict, fuzzify and like options to parser->new
+        * added wildcard support
+        * added dbi() method to Query
+        * added rdbo() method to Query
+        * override rxAnd rxOr and rxNot in SQL->new() to make the qr//
+          patterns all case-insensitive.
+        * override rxField in SQL->new() to match [\w\.]+ to allow
+          for table.column patterns
+
 

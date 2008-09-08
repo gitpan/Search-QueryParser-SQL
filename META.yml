@@ -14,9 +14,10 @@ no_index:
     - inc
     - t
 requires:
+  Data::Dump: 0
   Scalar::Util: 0
   Search::QueryParser: 0
   Test::More: 0
 resources:
   license: http://dev.perl.org/licenses/
-version: 0.001
+version: 0.002

@@ -1,4 +1,4 @@
-use Test::More tests => 18;
+use Test::More tests => 23;
 
 use_ok('Search::QueryParser::SQL');
 
@@ -41,7 +41,7 @@ ok( my $query5 = $parser2->parse("joe smith"), "query5" );
 cmp_ok(
     $query5,
     'eq',
-    "(first_name='joe' OR last_name='joe' OR email='joe') OR (first_name='smith' OR last_name='smith' OR email='smith')",
+    "(email='joe' OR first_name='joe' OR last_name='joe') OR (email='smith' OR first_name='smith' OR last_name='smith')",
     "query5 string"
 );
 
@@ -50,7 +50,7 @@ ok( my $query6 = $parser2->parse('"joe smith"'), "query6" );
 cmp_ok(
     $query6,
     'eq',
-    "(first_name='joe smith' OR last_name='joe smith' OR email='joe smith')",
+    "(email='joe smith' OR first_name='joe smith' OR last_name='joe smith')",
     "query6 string"
 );
 
@@ -63,5 +63,28 @@ ok( my $parser3 = Search::QueryParser::SQL->new(
 
 ok( my $query7 = $parser3->parse('green'), "query7" );
 
-cmp_ok( $query7, 'eq', "(`foo`='green' OR `bar`='green')", "query7 string" );
+cmp_ok( $query7, 'eq', "(`bar`='green' OR `foo`='green')", "query7 string" );
 
+ok( my $parser4 = Search::QueryParser::SQL->new(
+        columns => [qw( foo )],
+        strict  => 1,
+    ),
+    "strict parser4"
+);
+
+eval { $parser4->parse('bar=123') };
+
+ok( $@ && $@ =~ m/^invalid column name: bar/, "croak on invalid query" );
+
+ok( my $parser5 = Search::QueryParser::SQL->new(
+        columns => [qw( foo )],
+        like    => 'like',
+        fuzzify => 1,
+        strict  => 1
+    ),
+    "parser5"
+);
+
+ok( my $query8 = $parser5->parse('foo:bar'), "query8" );
+
+cmp_ok( $query8, 'eq', "(foo like 'bar%')", "query8 string" );
