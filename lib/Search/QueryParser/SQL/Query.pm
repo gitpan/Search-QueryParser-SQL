@@ -6,7 +6,9 @@ use Data::Dump qw( dump );
 
 use overload '""' => 'stringify';
 
-our $VERSION = '0.002';
+our $VERSION = '0.003';
+
+my $debug = $ENV{PERL_DEBUG} || 0;
 
 =head1 NAME
 
@@ -119,12 +121,13 @@ build_select() method as the C<query> argument.
 sub rdbo {
     my $self = shift;
 
-    #warn '=' x 80 . "\n";
-    #warn "STRING: $self->{_string}\n";
+    $debug and warn '=' x 80 . "\n";
+    $debug and warn "STRING: $self->{_string}\n";
+    $debug and warn "PARSER: " . dump( $self->{_parser} ) . "\n";
 
     my $q = $self->_orm;
 
-    #warn "q: " . dump $q;
+    $debug and warn "q: " . dump $q;
 
     if ( scalar @$q > 2 ) {
         return [ ( $self->{_implicit_AND} ? 'AND' : 'OR' ) => $q ];
@@ -132,6 +135,16 @@ sub rdbo {
     else {
         return $q;
     }
+}
+
+=head2 parser
+
+Returns the original parser object that generated the query.
+
+=cut
+
+sub parser {
+    shift->{_parser};
 }
 
 sub _orm {
@@ -143,7 +156,7 @@ sub _orm {
 
         my $joiner = $op_map{$prefix};
 
-        #carp "prefix '$prefix' ($joiner): " . dump $q->{$prefix};
+        $debug and warn "prefix '$prefix' ($joiner): " . dump $q->{$prefix};
 
         my @op_subq;
 
@@ -151,9 +164,9 @@ sub _orm {
             my $q = $self->_orm_subq( $subq, $prefix );
             my $items = scalar(@$q);
 
-            #warn "items $items $joiner : " . dump $q;
+            $debug and warn "items $items $joiner : " . dump $q;
 
-            push( @op_subq, ( $items > 2 ) ? ( $joiner => $q ) : @$q );
+            push( @op_subq, ( $items > 2 ) ? ( 'OR' => $q ) : @$q );
         }
 
         push( @$query,
@@ -168,6 +181,8 @@ sub _orm_subq {
     my $subQ   = shift;
     my $prefix = shift;
     my $opts   = $self->{opts} || {};
+    my $is_int = $self->{_parser}->{_is_int};
+    my $like   = $self->{_parser}->{like};
 
     return $self->_orm( $subQ->{value} )
         if $subQ->{op} eq '()';
@@ -197,7 +212,7 @@ sub _orm_subq {
     }
     if ( $value =~ m/\%/ )
     {    # TODO is this correct for all dbs? or $op =~ m/\~/) {
-        $op = $self->{_parser}->{like};
+        $op = $like;
     }
 
     # TODO better operator selection
@@ -206,6 +221,15 @@ sub _orm_subq {
     for my $column (@columns) {
         if ( $op eq '=' ) {
             push( @buf, $column => $value );
+        }
+        elsif ( $is_int->{$column} and $op eq $like ) {
+            
+            # if the value doesn't look like an int...??
+            if ( $value =~ m/\D/ ) {
+                next;
+            }
+            
+            push( @buf, $column => { 'ge' => $value } );
         }
         else {
             push( @buf, $column => { $op => $value } );
@@ -304,7 +328,10 @@ sub _unwind_subQ {
         }
     }
 
-    return '(' . join( ' OR ', @buf ) . ')';
+    return
+          ( scalar(@buf) > 1 ? '(' : '' )
+        . join( ' OR ', @buf )
+        . ( scalar(@buf) > 1 ? ')' : '' );
 
 }
 

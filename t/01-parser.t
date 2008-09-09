@@ -11,22 +11,22 @@ ok( my $parser = Search::QueryParser::SQL->new(
 
 ok( my $query1 = $parser->parse('foo=bar'), "query1" );
 
-cmp_ok( $query1, 'eq', "(foo='bar')", "query1 string" );
+cmp_ok( $query1, 'eq', "foo='bar'", "query1 string" );
 
 ok( my $query2 = $parser->parse('foo:bar'), "query2" );
 
-cmp_ok( $query2, 'eq', "(foo='bar')", "query2 string" );
+cmp_ok( $query2, 'eq', "foo='bar'", "query2 string" );
 
 ok( my $query3 = $parser->parse( 'foo bar', 1 ), "query3" );
 
-cmp_ok( $query3, 'eq', "(name='foo') AND (name='bar')", "query3 string" );
+cmp_ok( $query3, 'eq', "name='foo' AND name='bar'", "query3 string" );
 
 ok( my $query4 = $parser->parse('-color:red (name:john OR foo:bar)'),
     "query4" );
 
 cmp_ok(
     $query4, 'eq',
-    "((name='john') OR (foo='bar')) AND (color!='red')",
+    "(name='john' OR foo='bar') AND color!='red'",
     "query4 string"
 );
 
@@ -87,4 +87,4 @@ ok( my $parser5 = Search::QueryParser::SQL->new(
 
 ok( my $query8 = $parser5->parse('foo:bar'), "query8" );
 
-cmp_ok( $query8, 'eq', "(foo like 'bar%')", "query8 string" );
+cmp_ok( $query8, 'eq', "foo like 'bar%'", "query8 string" );

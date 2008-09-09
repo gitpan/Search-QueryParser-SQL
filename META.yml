@@ -1,23 +1,21 @@
----
-abstract: 'turn free-text queries into SQL WHERE clauses'
-author:
-  - 'Peter Karman, C<< <karman@cpan.org> >>'
+--- 
+abstract: turn free-text queries into SQL WHERE clauses
+author: 
+  - Peter Karman, C<< <karman@cpan.org> >>
 distribution_type: module
-generated_by: 'Module::Install version 0.77'
+generated_by: Module::Install version 0.68
 license: perl
-meta-spec:
-  url: http://module-build.sourceforge.net/META-spec-v1.4.html
-  version: 1.4
+meta-spec: 
+  url: http://module-build.sourceforge.net/META-spec-v1.3.html
+  version: 1.3
 name: Search-QueryParser-SQL
-no_index:
-  directory:
+no_index: 
+  directory: 
     - inc
     - t
-requires:
+requires: 
   Data::Dump: 0
   Scalar::Util: 0
   Search::QueryParser: 0
   Test::More: 0
-resources:
-  license: http://dev.perl.org/licenses/
-version: 0.002
+version: 0.003

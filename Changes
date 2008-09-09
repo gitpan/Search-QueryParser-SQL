@@ -13,4 +13,11 @@ Revision history for Search-QueryParser-SQL
         * override rxField in SQL->new() to match [\w\.]+ to allow
           for table.column patterns
 
+0.003   9 Sept 2008
+        * fix rdbo() method bug where multiple columns were being AND'd
+          instead of OR'd as with stringify() and dbi()
+        * add PERL_DEBUG option to Query
+        * trim down the number of parens generated
+        * remove SQL->unparse() override so it just calls superclass
+
 

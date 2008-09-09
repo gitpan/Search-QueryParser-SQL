@@ -10,7 +10,7 @@ use base qw( Search::QueryParser );
 use Search::QueryParser::SQL::Query;
 use Scalar::Util qw( blessed );
 
-our $VERSION = '0.002';
+our $VERSION = '0.003';
 
 =head1 NAME
 
@@ -134,9 +134,16 @@ sub new {
         'rxField' => qr/[\.\w]+/,
 
         # make and/or/not case insensitive
-        'rxAnd' => qr/AND|ET|UND|E/i,
-        'rxOr'  => qr/OR|OU|ODER|O/i,
-        'rxNot' => qr/NOT|PAS|NICHT|NON/i,
+        'rxAnd' => qr/AND|and/,
+        'rxOr'  => qr/OR|or/,
+        'rxNot' => qr/NOT|not/,
+
+        # there is apparently a bug in S::QP when
+        # using these. it strips the first 'e' off of 'email'
+        # for example, interpreting it as '+' (AND)
+        #        'rxAnd' => qr/AND|ET|UND|E/i,
+        #        'rxOr'  => qr/OR|OU|ODER|O/i,
+        #        'rxNot' => qr/NOT|PAS|NICHT|NON/i,
     );
     my $args = ref $_[0] eq 'HASH' ? $_[0] : {@_};
     $self->{columns} = delete $args->{columns} or croak "columns required";
@@ -204,24 +211,6 @@ sub parse {
 
     #dump $query;
     return bless( $query, 'Search::QueryParser::SQL::Query' );
-}
-
-=head2 unparse( I<query> )
-
-Same as calling $query->stringify.
-
-=cut
-
-sub unparse {
-    my $self = shift;
-    my $query = shift or croak "query required";
-    unless ( blessed($query)
-        and $query->isa('Search::QueryParser::SQL::Query') )
-    {
-        croak "query is not a blessed Search::QueryParser::SQL::Query object";
-    }
-
-    return $query->stringify;
 }
 
 1;

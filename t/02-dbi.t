@@ -10,22 +10,22 @@ ok( my $parser = Search::QueryParser::SQL->new(
 );
 
 ok( my $query1 = $parser->parse('foo=bar'), "query1" );
-cmp_ok( $query1->dbi->[0], 'eq', "(foo=?)", "query1 string" );
+cmp_ok( $query1->dbi->[0], 'eq', "foo=?", "query1 string" );
 is_deeply( $query1->dbi->[1], ['bar'], "query1 values" );
 
 ok( my $query2 = $parser->parse('foo:bar'), "query2" );
-cmp_ok( $query2->dbi->[0], 'eq', "(foo=?)", "query2 string" );
+cmp_ok( $query2->dbi->[0], 'eq', "foo=?", "query2 string" );
 is_deeply( $query2->dbi->[1], ['bar'], "query2 values" );
 
 ok( my $query3 = $parser->parse( 'foo bar', 1 ), "query3" );
-cmp_ok( $query3->dbi->[0], 'eq', "(name=?) AND (name=?)", "query3 string" );
+cmp_ok( $query3->dbi->[0], 'eq', "name=? AND name=?", "query3 string" );
 is_deeply( $query3->dbi->[1], [ 'foo', 'bar' ], "query3 values" );
 
 ok( my $query4 = $parser->parse('-color:red (name:john OR foo:bar)'),
     "query4" );
 cmp_ok(
     $query4->dbi->[0], 'eq',
-    "((name=?) OR (foo=?)) AND (color!=?)",
+    "(name=? OR foo=?) AND color!=?",
     "query4 string"
 );
 is_deeply( $query4->dbi->[1], [ 'john', 'bar', 'red' ], "query4 values" );
