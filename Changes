@@ -20,4 +20,9 @@ Revision history for Search-QueryParser-SQL
         * trim down the number of parens generated
         * remove SQL->unparse() override so it just calls superclass
 
+0.004   9 Sept 2008
+        * bump req S::QP to 0.93, which apparently fixes the case sensitive
+          bug with rx* operator qr//
+
+
 

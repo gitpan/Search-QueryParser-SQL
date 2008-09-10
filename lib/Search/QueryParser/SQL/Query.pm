@@ -6,7 +6,7 @@ use Data::Dump qw( dump );
 
 use overload '""' => 'stringify';
 
-our $VERSION = '0.003';
+our $VERSION = '0.004';
 
 my $debug = $ENV{PERL_DEBUG} || 0;
 
