@@ -10,7 +10,7 @@ use base qw( Search::QueryParser );
 use Search::QueryParser::SQL::Query;
 use Scalar::Util qw( blessed );
 
-our $VERSION = '0.004';
+our $VERSION = '0.005';
 
 =head1 NAME
 

@@ -24,5 +24,9 @@ Revision history for Search-QueryParser-SQL
         * bump req S::QP to 0.93, which apparently fixes the case sensitive
           bug with rx* operator qr//
 
+0.005   10 Sept 2008
+        * add dbic() method to Query class
+
+
 
 

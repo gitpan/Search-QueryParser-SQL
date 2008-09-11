@@ -6,7 +6,7 @@ use Data::Dump qw( dump );
 
 use overload '""' => 'stringify';
 
-our $VERSION = '0.004';
+our $VERSION = '0.005';
 
 my $debug = $ENV{PERL_DEBUG} || 0;
 
@@ -137,6 +137,36 @@ sub rdbo {
     }
 }
 
+=head2 dbic
+
+Returns array ref ready for passing to DBIx::Class as search query.
+This is the SQL::Abstract format.
+
+=cut
+
+sub dbic {
+    my $self = shift;
+
+    $debug and warn '=' x 80 . "\n";
+    $debug and warn "STRING: $self->{_string}\n";
+    $debug and warn "PARSER: " . dump( $self->{_parser} ) . "\n";
+
+    $self->{opts}->{dbic} = 1;
+
+    my $q = $self->_orm;
+
+    $debug and warn "dbic q: " . dump $q;
+
+    delete $self->{opts}->{dbic};
+
+    if ( scalar @$q > 2 ) {
+        return [ ( $self->{_implicit_AND} ? '-and' : '-or' ) => $q ];
+    }
+    else {
+        return $q;
+    }
+}
+
 =head2 parser
 
 Returns the original parser object that generated the query.
@@ -151,10 +181,13 @@ sub _orm {
     my $self = shift;
     my $q = shift || $self;
     my $query;
+    my $OR = $self->{opts}->{dbic} ? '-or' : 'OR';
     for my $prefix ( '+', '', '-' ) {
         next unless ( defined $q->{$prefix} and @{ $q->{$prefix} } );
 
         my $joiner = $op_map{$prefix};
+
+        $joiner = '-' . lc($joiner) if $self->{opts}->{dbic};
 
         $debug and warn "prefix '$prefix' ($joiner): " . dump $q->{$prefix};
 
@@ -166,7 +199,7 @@ sub _orm {
 
             $debug and warn "items $items $joiner : " . dump $q;
 
-            push( @op_subq, ( $items > 2 ) ? ( 'OR' => $q ) : @$q );
+            push( @op_subq, ( $items > 2 ) ? ( $OR => $q ) : @$q );
         }
 
         push( @$query,
@@ -223,12 +256,12 @@ sub _orm_subq {
             push( @buf, $column => $value );
         }
         elsif ( $is_int->{$column} and $op eq $like ) {
-            
+
             # if the value doesn't look like an int...??
             if ( $value =~ m/\D/ ) {
                 next;
             }
-            
+
             push( @buf, $column => { 'ge' => $value } );
         }
         else {

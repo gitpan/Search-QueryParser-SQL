@@ -161,3 +161,7 @@ is_deeply(
     "query8 string"
 );
 
+# TODO
+#my $dbic = $query8->dbic;
+#warn dump $dbic;
+
