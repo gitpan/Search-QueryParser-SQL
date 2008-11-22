@@ -10,7 +10,7 @@ use base qw( Search::QueryParser );
 use Search::QueryParser::SQL::Query;
 use Scalar::Util qw( blessed );
 
-our $VERSION = '0.005';
+our $VERSION = '0.006';
 
 =head1 NAME
 
@@ -80,7 +80,7 @@ treated like 'char'.
 
 =item default_column
 
-B<Optional>
+I<Optional>
 
 The column name or names to be used when no explicit column name is
 used in a query string. If not present, defaults to I<columns>.
@@ -88,7 +88,7 @@ used in a query string. If not present, defaults to I<columns>.
 
 =item quote_columns
 
-B<Optional>
+I<Optional>
 
 The default behaviour is to not quote column names, but some SQL
 dialects expect column names to be quoted (escaped).

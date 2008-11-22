@@ -4,9 +4,9 @@ use warnings;
 use Carp;
 use Data::Dump qw( dump );
 
-use overload '""' => 'stringify';
+use overload '""' => 'stringify', 'fallback' => 1;
 
-our $VERSION = '0.005';
+our $VERSION = '0.006';
 
 my $debug = $ENV{PERL_DEBUG} || 0;
 

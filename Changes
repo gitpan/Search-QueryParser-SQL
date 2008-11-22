@@ -28,5 +28,7 @@ Revision history for Search-QueryParser-SQL
         * add dbic() method to Query class
 
 
+0.006   22 Nov 2008
+        * fix overload bug for Test::More 0.86
 
 
