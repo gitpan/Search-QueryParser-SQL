@@ -32,3 +32,6 @@ Revision history for Search-QueryParser-SQL
         * fix overload bug for Test::More 0.86
 
 
+0.007   4 Dec 2008
+        * add fuzzify2 feature
+

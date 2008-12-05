@@ -6,7 +6,7 @@ use Data::Dump qw( dump );
 
 use overload '""' => 'stringify', 'fallback' => 1;
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 my $debug = $ENV{PERL_DEBUG} || 0;
 
@@ -227,13 +227,7 @@ sub _orm_subq {
         : ( @{ $self->{_parser}->{default_column} } );
 
     # what value
-    my $value = $subQ->{value};
-    if ( $self->{_parser}->{fuzzify} ) {
-        $value .= '*' unless $value =~ m/[\*\%]/;
-    }
-
-    # normalize wildcard to sql variety
-    $value =~ s/\*/\%/g;
+    my $value = $self->_doctor_value($subQ);
 
     # normalize operator
     my $op = $subQ->{op};
@@ -295,6 +289,23 @@ sub _unwind {
     return join( " AND ", @subQ );
 }
 
+sub _doctor_value {
+    my ( $self, $subQ ) = @_;
+
+    my $value = $subQ->{value};
+    if ( $self->{_parser}->{fuzzify} ) {
+        $value .= '*' unless $value =~ m/[\*\%]/;
+    }
+    elsif ( $self->{_parser}->{fuzzify2} ) {
+        $value = "*$value*" unless $value =~ m/[\*\%]/;
+    }
+
+    # normalize wildcard to sql variety
+    $value =~ s/\*/\%/g;
+
+    return $value;
+}
+
 sub _unwind_subQ {
     my $self   = shift;
     my $subQ   = shift;
@@ -319,13 +330,7 @@ sub _unwind_subQ {
         : ( @{ $self->{_parser}->{default_column} } );
 
     # what value
-    my $value = $subQ->{value};
-    if ( $self->{_parser}->{fuzzify} ) {
-        $value .= '*' unless $value =~ m/[\*\%]/;
-    }
-
-    # normalize wildcard to sql variety
-    $value =~ s/\*/\%/g;
+    my $value = $self->_doctor_value($subQ);
 
     # normalize operator
     my $op = $subQ->{op};

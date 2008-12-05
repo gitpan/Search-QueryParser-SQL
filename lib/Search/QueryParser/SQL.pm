@@ -10,7 +10,7 @@ use base qw( Search::QueryParser );
 use Search::QueryParser::SQL::Query;
 use Scalar::Util qw( blessed );
 
-our $VERSION = '0.006';
+our $VERSION = '0.007';
 
 =head1 NAME
 
@@ -108,6 +108,13 @@ I<Optional>
 Treat all query keywords as if they had wildcards attached to the end.
 E.g., C<foo> would be treated like C<foo*>.
 
+=item fuzzify2
+
+I<Optional>
+
+Like fuzzify but prepend wildcards as well. E.g., C<foo> would be treated
+like C<*foo*>.
+
 =item strict
 
 I<Optional>
@@ -166,6 +173,7 @@ sub new {
 
     $self->{quote_columns} = delete $args->{quote_columns} || '';
     $self->{fuzzify}       = delete $args->{fuzzify}       || 0;
+    $self->{fuzzify2}      = delete $args->{fuzzify2}      || 0;
     $self->{strict}        = delete $args->{strict}        || 0;
     $self->{like}          = delete $args->{like}          || 'ILIKE';
 

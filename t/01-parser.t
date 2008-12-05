@@ -1,4 +1,4 @@
-use Test::More tests => 23;
+use Test::More tests => 26;
 
 use_ok('Search::QueryParser::SQL');
 
@@ -88,3 +88,16 @@ ok( my $parser5 = Search::QueryParser::SQL->new(
 ok( my $query8 = $parser5->parse('foo:bar'), "query8" );
 
 cmp_ok( $query8, 'eq', "foo like 'bar%'", "query8 string" );
+
+ok( my $parser6 = Search::QueryParser::SQL->new(
+        columns  => [qw( foo )],
+        like     => 'like',
+        fuzzify2 => 1,
+        strict   => 1
+    ),
+    "parser6"
+);
+
+ok( my $query9 = $parser6->parse('foo:bar'), "query9" );
+
+cmp_ok( $query9, 'eq', "foo like '%bar%'", "query9 string" );
