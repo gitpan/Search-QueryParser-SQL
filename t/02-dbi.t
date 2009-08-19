@@ -1,4 +1,4 @@
-use Test::More tests => 25;
+use Test::More tests => 29;
 
 use_ok('Search::QueryParser::SQL');
 
@@ -71,3 +71,30 @@ ok( my $parser3 = Search::QueryParser::SQL->new(
 ok( my $query7 = $parser3->parse('green'), "query7" );
 cmp_ok( $query7->dbi->[0], 'eq', "(`bar`=? OR `foo`=?)", "query7 string" );
 is_deeply( $query7->dbi->[1], [ 'green', 'green' ], "query7 values" );
+
+ok( my $parser4 = Search::QueryParser::SQL->new(
+        columns => {
+            foo => 'char',
+            bar => 'int',
+            dt  => 'datetime'
+        }
+    ),
+    "parser4"
+);
+
+ok( my $parser4_query = $parser4->parse(
+        "foo = red* and bar = 123* and dt = 2009-01-01*", 1
+    ),
+    "parse query7"
+);
+my $dbi = $parser4_query->dbi;
+cmp_ok(
+    $dbi->[0], 'eq',
+    "foo ILIKE ? AND bar>=? AND dt>=?",
+    "parser4_query dbi->[0]"
+);
+is_deeply(
+    $dbi->[1],
+    [ 'red%', '123', '2009-01-01' ],
+    "parser4_query string"
+);

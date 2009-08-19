@@ -1,4 +1,4 @@
-use Test::More tests => 26;
+use Test::More tests => 30;
 
 use_ok('Search::QueryParser::SQL');
 
@@ -77,7 +77,7 @@ eval { $parser4->parse('bar=123') };
 ok( $@ && $@ =~ m/^invalid column name: bar/, "croak on invalid query" );
 
 ok( my $parser5 = Search::QueryParser::SQL->new(
-        columns => [qw( foo )],
+        columns => { foo => 'char', bar => 'int' },
         like    => 'like',
         fuzzify => 1,
         strict  => 1
@@ -88,6 +88,14 @@ ok( my $parser5 = Search::QueryParser::SQL->new(
 ok( my $query8 = $parser5->parse('foo:bar'), "query8" );
 
 cmp_ok( $query8, 'eq', "foo like 'bar%'", "query8 string" );
+
+ok( $query8 = $parser5->parse('bar=1*'), "query8 fuzzy int with wildcard" );
+
+cmp_ok( $query8, 'eq', "bar>=1", "query8 fuzzy int with wildcard string" );
+
+ok( $query8 = $parser5->parse('bar=1'), "query8 fuzzy int no wildcard" );
+
+cmp_ok( $query8, 'eq', "bar>=1", "query8 fuzzy int no wildcard string" );
 
 ok( my $parser6 = Search::QueryParser::SQL->new(
         columns  => [qw( foo )],

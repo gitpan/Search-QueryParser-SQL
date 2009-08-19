@@ -1,16 +1,16 @@
 package Search::QueryParser::SQL;
-
 use warnings;
 use strict;
 use Carp;
 use base qw( Search::QueryParser );
-
-#use Data::Dump qw( dump );
-
+use Data::Dump qw( dump );
 use Search::QueryParser::SQL::Query;
+use Search::QueryParser::SQL::Column;
 use Scalar::Util qw( blessed );
 
-our $VERSION = '0.007';
+our $VERSION = '0.008';
+
+my $debug = $ENV{PERL_DEBUG} || 0;
 
 =head1 NAME
 
@@ -70,13 +70,16 @@ I<args>:
 B<Required>
 
 May be a hash or array ref of column names. If a hash ref,
-the keys should be column names and the values the column type
-(e.g., int, varchar, etc.).
+the keys should be column names and the values either the column type
+(e.g., int, varchar, etc.) or a hashref of attributes used to
+instantiate a Search::QueryParser::SQL::Column object.
 
 The values are used for determining correct quoting in strings
 and for operator selection with wildcards.
 If passed as an array ref, all column arguments will be 
 treated like 'char'.
+
+See Search::QueryParser::SQL::Column for more information.
 
 =item default_column
 
@@ -84,7 +87,6 @@ I<Optional>
 
 The column name or names to be used when no explicit column name is
 used in a query string. If not present, defaults to I<columns>.
-
 
 =item quote_columns
 
@@ -129,6 +131,13 @@ I<Optional>
 The SQL operator to use for wildcard query strings. The default is
 C<ILIKE>.
 
+=item column_class
+
+I<Optional>
+
+The name of the class to bless Column objects into. Default is
+C<Search::QueryParser::SQL::Column>.
+
 =back
 
 =cut
@@ -146,23 +155,16 @@ sub new {
         'rxNot' => qr/NOT|PAS|NICHT|NON/i,
     );
     my $args = ref $_[0] eq 'HASH' ? $_[0] : {@_};
-    $self->{columns} = delete $args->{columns} or croak "columns required";
-    my $reftype = ref( $self->{columns} );
-    if ( !$reftype or ( $reftype ne 'ARRAY' and $reftype ne 'HASH' ) ) {
-        croak "columns must be an ARRAY or HASH ref";
-    }
+    $self->{quote_columns} = delete $args->{quote_columns} || '';
+    $self->{fuzzify}       = delete $args->{fuzzify}       || 0;
+    $self->{fuzzify2}      = delete $args->{fuzzify2}      || 0;
+    $self->{strict}        = delete $args->{strict}        || 0;
+    $self->{like}          = delete $args->{like}          || 'ILIKE';
+    $self->{column_class}  = delete $args->{column_class}
+        || 'Search::QueryParser::SQL::Column';
 
-    # TODO other sanity checks?
-
-    # store columns as HASH
-    if ( $reftype eq 'ARRAY' ) {
-        $self->{columns} = { map { $_ => 'char' } @{ $self->{columns} } };
-    }
-
-    for my $col ( keys %{ $self->{columns} } ) {
-        $self->{_is_int}->{$col} = 1
-            if ( $self->{columns}->{$col} =~ m/int|float|bool|time|date/ );
-    }
+    my $cols = delete $args->{columns} or croak "columns required";
+    $self->_set_columns($cols);
 
     $self->{default_column} = delete $args->{default_column}
         || [ sort keys %{ $self->{columns} } ];
@@ -171,15 +173,77 @@ sub new {
         $self->{default_column} = [ $self->{default_column} ];
     }
 
-    $self->{quote_columns} = delete $args->{quote_columns} || '';
-    $self->{fuzzify}       = delete $args->{fuzzify}       || 0;
-    $self->{fuzzify2}      = delete $args->{fuzzify2}      || 0;
-    $self->{strict}        = delete $args->{strict}        || 0;
-    $self->{like}          = delete $args->{like}          || 'ILIKE';
-
-    #dump $self;
+    dump $self if $debug;
 
     return $self;
+}
+
+sub _set_columns {
+    my $self = shift;
+    my $cols = shift or croak "columns required";
+    my %columns;
+    my $colclass = $self->{column_class};
+
+    my $reftype = ref($cols);
+    if ( !$reftype or ( $reftype ne 'ARRAY' and $reftype ne 'HASH' ) ) {
+        croak "columns must be an ARRAY or HASH ref";
+    }
+
+    # convert simple array to hash
+    if ( $reftype eq 'ARRAY' ) {
+        %columns = map {
+            $_ => $colclass->new(
+                type         => 'char',
+                name         => $_,
+                fuzzy_op     => $self->{like},
+                fuzzy_not_op => 'NOT ' . $self->{like},
+                )
+        } @$cols;
+    }
+    elsif ( $reftype eq 'HASH' ) {
+        for my $name ( keys %$cols ) {
+            my $val = $cols->{$name};
+            my $obj;
+            if ( blessed($val) ) {
+                $obj = $val;
+            }
+            elsif ( ref($val) eq 'HASH' ) {
+                $obj = $colclass->new($val);
+            }
+            elsif ( !ref $val ) {
+                $obj = $colclass->new( name => $name, type => $val );
+                $obj->fuzzy_op( $self->{like} ) if !$obj->is_int;
+                $obj->fuzzy_not_op( 'NOT ' . $self->{like} ) if !$obj->is_int;
+            }
+            else {
+                croak
+                    "column value for $name must be a column type, hashref or Column object";
+            }
+            $columns{$name} = $obj;
+        }
+    }
+
+    # normalize everything
+    for my $name ( keys %columns ) {
+        my $column = $columns{$name};
+
+        # set the alias as if it were a real column.
+        if ( defined $column->alias ) {
+            my @aliases
+                = ref $column->alias
+                ? @{ $column->alias }
+                : ( $column->alias );
+            for my $al (@aliases) {
+                $columns{$al} = $column;
+            }
+        }
+
+        # shortcut for lookup
+        $self->{_is_int}->{$name} = $column->is_int;
+    }
+
+    $self->{columns} = \%columns;
+    return $self->{columns};
 }
 
 =head2 parse( I<string> )
@@ -212,6 +276,36 @@ sub parse {
 
     #dump $query;
     return bless( $query, 'Search::QueryParser::SQL::Query' );
+}
+
+=head2 columns
+
+Get/set the column descriptions, which is a hashref of
+Search::QueryParser::SQL::Column objects keyed by the column name.
+
+=cut
+
+sub columns {
+    my $self = shift;
+    if (@_) {
+        $self->_set_columns(shift);
+    }
+    return $self->{columns};
+}
+
+=head2 get_column( I<name> )
+
+Returns the Column object for I<name> or croaks if it has not been defined.
+
+=cut
+
+sub get_column {
+    my $self = shift;
+    my $name = shift or croak "column name required";
+    if ( !exists $self->{columns}->{$name} ) {
+        croak "column $name not defined";
+    }
+    return $self->{columns}->{$name};
 }
 
 1;

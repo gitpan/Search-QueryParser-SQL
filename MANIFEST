@@ -10,6 +10,7 @@ inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
 lib/Search/QueryParser/SQL.pm
 lib/Search/QueryParser/SQL/Query.pm
+lib/Search/QueryParser/SQL/Column.pm
 Makefile.PL
 MANIFEST
 META.yml

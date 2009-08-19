@@ -35,3 +35,9 @@ Revision history for Search-QueryParser-SQL
 0.007   4 Dec 2008
         * add fuzzify2 feature
 
+0.008   18 Aug 2009
+        * add tests and support for fuzzy int-types
+        * refactor to include an explicit Column class to allow for more
+          granular control of sql building. Thanks to John Maslanik for the prompting
+          that led to this idea.
+

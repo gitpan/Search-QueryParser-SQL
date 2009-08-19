@@ -1,4 +1,4 @@
-use Test::More tests => 20;
+use Test::More tests => 23;
 
 use Data::Dump qw( dump );
 
@@ -159,6 +159,36 @@ is_deeply(
         ]
     ],
     "query8 string"
+);
+
+ok( my $parser4 = Search::QueryParser::SQL->new(
+        columns => {
+            foo => 'char',
+            bar => 'int',
+            dt  => 'datetime'
+        }
+    ),
+    "parser4"
+);
+
+ok( my $parser4_query = $parser4->parse(
+        "foo = red* and bar = 123* and dt = 2009-01-01*", 1
+    ),
+    "parse query7"
+);
+
+$rdbo = $parser4_query->rdbo;
+
+#warn dump $rdbo;
+is_deeply(
+    $rdbo,
+    [   "AND",
+        [   "foo", { ILIKE => "red%" },
+            "bar", { ">="  => 123 },
+            "dt",  { ">="  => "2009-01-01" },
+        ],
+    ],
+    "parser4_query string"
 );
 
 # TODO

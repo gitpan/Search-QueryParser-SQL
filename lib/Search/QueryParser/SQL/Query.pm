@@ -6,7 +6,7 @@ use Data::Dump qw( dump );
 
 use overload '""' => 'stringify', 'fallback' => 1;
 
-our $VERSION = '0.007';
+our $VERSION = '0.008';
 
 my $debug = $ENV{PERL_DEBUG} || 0;
 
@@ -181,7 +181,8 @@ sub _orm {
     my $self = shift;
     my $q = shift || $self;
     my $query;
-    my $OR = $self->{opts}->{dbic} ? '-or' : 'OR';
+    my $OR  = $self->{opts}->{dbic} ? '-or'  : 'OR';
+    my $AND = $self->{opts}->{dbic} ? '-and' : 'AND';
     for my $prefix ( '+', '', '-' ) {
         next unless ( defined $q->{$prefix} and @{ $q->{$prefix} } );
 
@@ -198,8 +199,8 @@ sub _orm {
             my $items = scalar(@$q);
 
             $debug and warn "items $items $joiner : " . dump $q;
-
-            push( @op_subq, ( $items > 2 ) ? ( $OR => $q ) : @$q );
+            my $sub_joiner = $prefix eq '-' ? $AND : $OR;
+            push( @op_subq, ( $items > 2 ) ? ( $sub_joiner => $q ) : @$q );
         }
 
         push( @$query,
@@ -214,8 +215,6 @@ sub _orm_subq {
     my $subQ   = shift;
     my $prefix = shift;
     my $opts   = $self->{opts} || {};
-    my $is_int = $self->{_parser}->{_is_int};
-    my $like   = $self->{_parser}->{like};
 
     return $self->_orm( $subQ->{value} )
         if $subQ->{op} eq '()';
@@ -237,30 +236,47 @@ sub _orm_subq {
     if ( $prefix eq '-' ) {
         $op = '!' . $op;
     }
-    if ( $value =~ m/\%/ )
-    {    # TODO is this correct for all dbs? or $op =~ m/\~/) {
-        $op = $like;
+    if ( $value =~ m/\%/ ) {
+        $op = $prefix eq '-' ? '!~' : '~';
     }
 
-    # TODO better operator selection
-
     my @buf;
-    for my $column (@columns) {
-        if ( $op eq '=' ) {
-            push( @buf, $column => $value );
+    for my $colname (@columns) {
+        my $column = $self->{_parser}->get_column($colname);
+
+        $value =~ s/\%//g if $column->is_int;
+
+        my @pair;
+
+        if ( defined $column->orm_callback ) {
+            @pair = $column->orm_callback->( $column, $op, $value );
         }
-        elsif ( $is_int->{$column} and $op eq $like ) {
 
-            # if the value doesn't look like an int...??
-            if ( $value =~ m/\D/ ) {
-                next;
-            }
+        # standard
+        elsif ( $op eq '=' ) {
+            @pair = ( $colname, $value );
+        }
 
-            push( @buf, $column => { 'ge' => $value } );
+        # negation
+        elsif ( $op eq '!=' ) {
+            @pair = ( $colname, { $op => $value } );
+        }
+
+        # fuzzy
+        elsif ( $op eq '~' ) {
+            @pair = ( $colname, { $column->fuzzy_op => $value } );
+        }
+
+        # not fuzzy
+        elsif ( $op eq '!~' ) {
+            @pair = ( $colname, { $column->fuzzy_not_op => $value } );
         }
         else {
-            push( @buf, $column => { $op => $value } );
+            croak
+                "unknown operator logic for column '$colname' op '$op' value '$value'";
         }
+
+        push @buf, @pair;
     }
 
     #warn "buf: " . dump \@buf;
@@ -293,6 +309,7 @@ sub _doctor_value {
     my ( $self, $subQ ) = @_;
 
     my $value = $subQ->{value};
+
     if ( $self->{_parser}->{fuzzify} ) {
         $value .= '*' unless $value =~ m/[\*\%]/;
     }
@@ -315,11 +332,6 @@ sub _unwind_subQ {
     return "(" . $self->_unwind( $subQ->{value} ) . ")"
         if $subQ->{op} eq '()';
 
-    #my $quote = $subQ->{quote} || "";
-
-    # whether we quote depends on the field (column) type
-    my $quote = $self->{_parser}->{_is_int}->{ $subQ->{field} } ? "" : "'";
-
     # optional
     my $col_quote = $self->{_parser}->{quote_columns};
 
@@ -341,34 +353,71 @@ sub _unwind_subQ {
         $op = '!' . $op;
     }
     if ( $value =~ m/\%/ ) {
-        $op = ' ' . $self->{_parser}->{like} . ' ';
+        $op = $prefix eq '-' ? '!~' : '~';
     }
 
-    # TODO better operator selection
-
     my @buf;
-    for my $column (@columns) {
+COLNAME: for my $colname (@columns) {
+        my $column = $self->{_parser}->get_column($colname);
+        $value =~ s/\%//g if $column->is_int;
+        my $this_op;
+
+        # whether we quote depends on the field (column) type
+        my $quote = $column->is_int ? "" : "'";
+
+        # fuzzy
+        if ( $op =~ m/\~/ ) {
+
+            # negation
+            if ( $op eq '!~' ) {
+                if ( $column->is_int ) {
+                    $this_op = $column->fuzzy_not_op;
+                }
+                else {
+                    $this_op = ' ' . $column->fuzzy_not_op . ' ';
+                }
+            }
+
+            # standard fuzzy
+            else {
+                if ( $column->is_int ) {
+                    $this_op = $column->fuzzy_op;
+                }
+                else {
+                    $this_op = ' ' . $column->fuzzy_op . ' ';
+                }
+            }
+        }
+        else {
+            $this_op = $op;
+        }
+
+        if ( defined $column->callback ) {
+            push( @buf, $column->callback->( $column, $this_op, $value ) );
+            next COLNAME;
+        }
+
         if ( $opts->{delims} ) {
             push(
                 @buf,
                 join( '',
-                    $col_quote, $column, $col_quote, chr(5), $op,
-                    chr(6),     chr(2),  $value,     chr(3) )
+                    $col_quote, $colname, $col_quote, chr(5), $this_op,
+                    chr(6),     chr(2),   $value,     chr(3) )
             );
         }
         else {
             push(
                 @buf,
                 join( '',
-                    $col_quote, $column, $col_quote, $op,
-                    $quote,     $value,  $quote )
+                    $col_quote, $colname, $col_quote, $this_op,
+                    $quote,     $value,   $quote )
             );
         }
     }
-
+    my $joiner = $prefix eq '-' ? ' AND ' : ' OR ';
     return
           ( scalar(@buf) > 1 ? '(' : '' )
-        . join( ' OR ', @buf )
+        . join( $joiner, @buf )
         . ( scalar(@buf) > 1 ? ')' : '' );
 
 }
