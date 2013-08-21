@@ -41,3 +41,9 @@ Revision history for Search-QueryParser-SQL
           granular control of sql building. Thanks to John Maslanik for the prompting
           that led to this idea.
 
+0.009   20 Aug 2013
+        * switch to github
+        * fix for RT https://rt.cpan.org/Ticket/Display.html?id=87287
+          where implicit OR applied in dbic() and rdbo() structures when
+          implicit AND was more appropriate.
+

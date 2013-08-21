@@ -8,7 +8,7 @@ use Search::QueryParser::SQL::Query;
 use Search::QueryParser::SQL::Column;
 use Scalar::Util qw( blessed );
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 my $debug = $ENV{PERL_DEBUG} || 0;
 
@@ -246,10 +246,14 @@ sub _set_columns {
     return $self->{columns};
 }
 
-=head2 parse( I<string> )
+=head2 parse( I<string> [, I<implicit_AND>] )
 
 Acts like parse() method in Search::QueryParser, but
 returns a Search::QueryParser::SQL::Query object.
+
+If a second, true, value is passed as I<implicit_AND>,
+the query is assumed to "AND" terms together. The default
+is to "OR" them together.
 
 =cut
 

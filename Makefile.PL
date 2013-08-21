@@ -13,4 +13,10 @@ requires 'Scalar::Util'        => 0;
 requires 'Data::Dump'          => 0; # just for devel
 requires 'Class::Accessor::Fast' => 0;
 
+perl_version '5.8.3';
+license 'http://dev.perl.org/licenses/';
+homepage 'https://github.com/karpet/search-queryparser-sql';
+bugtracker 'http://rt.cpan.org/NoAuth/Bugs.html?Dist=Search-QueryParser-SQL';
+repository 'https://github.com/karpet/search-queryparser-sql.git';
+
 WriteAll;

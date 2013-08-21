@@ -6,7 +6,7 @@ use Data::Dump qw( dump );
 
 use overload '""' => 'stringify', 'fallback' => 1;
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 my $debug = $ENV{PERL_DEBUG} || 0;
 
@@ -129,8 +129,15 @@ sub rdbo {
 
     $debug and warn "q: " . dump $q;
 
+    my $joiner = $self->{_implicit_AND} ? 'AND' : 'OR';
+    if ( defined $self->{'-'} ) {
+
+        # no implicit OR with NOT queries
+        $joiner = 'AND';
+    }
+
     if ( scalar @$q > 2 ) {
-        return [ ( $self->{_implicit_AND} ? 'AND' : 'OR' ) => $q ];
+        return [ $joiner => $q ];
     }
     else {
         return $q;
@@ -159,8 +166,15 @@ sub dbic {
 
     delete $self->{opts}->{dbic};
 
+    my $joiner = $self->{_implicit_AND} ? '-and' : '-or';
+    if ( defined $self->{'-'} ) {
+
+        # no implicit OR with NOT queries
+        $joiner = '-and';
+    }
+
     if ( scalar @$q > 2 ) {
-        return [ ( $self->{_implicit_AND} ? '-and' : '-or' ) => $q ];
+        return [ $joiner => $q ];
     }
     else {
         return $q;

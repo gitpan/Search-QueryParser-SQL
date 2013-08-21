@@ -9,7 +9,7 @@ __PACKAGE__->mk_accessors(
 
 use overload '""' => 'stringify', 'fallback' => 1;
 
-our $VERSION = '0.008';
+our $VERSION = '0.009';
 
 my $debug = $ENV{PERL_DEBUG} || 0;
 

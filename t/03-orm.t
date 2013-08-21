@@ -1,7 +1,8 @@
-use Test::More tests => 23;
-
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Test::More tests => 26;
 use Data::Dump qw( dump );
-
 use_ok('Search::QueryParser::SQL');
 
 ok( my $parser = Search::QueryParser::SQL->new(
@@ -191,7 +192,35 @@ is_deeply(
     "parser4_query string"
 );
 
-# TODO
-#my $dbic = $query8->dbic;
-#warn dump $dbic;
+###################
+## dbic
+## see https://rt.cpan.org/Ticket/Display.html?id=87287
+##
+ok( my $dbic_qp = Search::QueryParser::SQL->new(
+        columns  => [ 'table1.column1', 'table1.column2' ],
+        like     => 'LIKE',
+        fuzzify2 => 1,
+    ),
+    "dbic_qp"
+);
+ok( my $dbic_query = $dbic_qp->parse( "butter -milk", 0 ),
+    "parse dbic query" );
 
+#diag( dump $dbic_query->dbic );
+#diag( $dbic_query->stringify );
+is_deeply(
+    $dbic_query->dbic,
+    [   '-and' => [
+            "-or",
+            [   "table1.column1", { LIKE => "%butter%" },
+                "table1.column2", { LIKE => "%butter%" },
+            ],
+            "-and",
+            [   "table1.column1", { "NOT LIKE" => "%milk%" },
+                "table1.column2", { "NOT LIKE" => "%milk%" },
+            ],
+        ],
+
+    ],
+    "->dbic structure"
+);
