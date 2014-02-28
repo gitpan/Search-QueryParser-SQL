@@ -31,4 +31,4 @@ resources:
   homepage: https://github.com/karpet/search-queryparser-sql
   license: http://dev.perl.org/licenses/
   repository: https://github.com/karpet/search-queryparser-sql.git
-version: 0.009
+version: 0.010

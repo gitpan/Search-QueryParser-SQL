@@ -1,4 +1,6 @@
-use Test::More tests => 30;
+#!/usr/bin/env perl
+use strict;
+use Test::More tests => 33;
 
 use_ok('Search::QueryParser::SQL');
 
@@ -109,3 +111,19 @@ ok( my $parser6 = Search::QueryParser::SQL->new(
 ok( my $query9 = $parser6->parse('foo:bar'), "query9" );
 
 cmp_ok( $query9, 'eq', "foo like '%bar%'", "query9 string" );
+
+# test lower feature
+ok( my $parser7 = Search::QueryParser::SQL->new(
+        columns  => [qw( foo )],
+        lower    => 1,
+        like     => 'like',
+        fuzzify2 => 1,
+        strict   => 1
+    ),  
+    "parser7"
+);
+
+ok( my $query10 = $parser7->parse('foo:bar'), "query10" );
+
+cmp_ok( $query10, 'eq', "lower(foo) like lower('%bar%')", "query10 string" );
+

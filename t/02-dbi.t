@@ -1,6 +1,10 @@
-use Test::More tests => 29;
+#!/usr/bin/env perl
+use strict;
+use Test::More tests => 33;
 
 use_ok('Search::QueryParser::SQL');
+
+use Data::Dump qw( dump );
 
 ok( my $parser = Search::QueryParser::SQL->new(
         columns        => [qw( foo color name )],
@@ -97,4 +101,34 @@ is_deeply(
     $dbi->[1],
     [ 'red%', '123', '2009-01-01' ],
     "parser4_query string"
+);
+
+# lower feature
+ok( my $lower_parser = Search::QueryParser::SQL->new(
+        columns => {
+            foo => 'char',
+            bar => 'int',
+            dt  => 'datetime'
+        },
+        lower => 1,
+    ),
+    "lower_parser"
+);
+ok( my $lower_query = $lower_parser->parse(
+        "foo = red* and bar = 123* and dt = 2009-01-01*", 1
+    ),
+    "parse lower_query"
+);
+my $lower_dbi = $lower_query->dbi;
+
+#diag( dump $lower_dbi );
+cmp_ok(
+    $lower_dbi->[0], 'eq',
+    "lower(foo) ILIKE lower(?) AND bar>=? AND dt>=?",
+    "lower_query dbi->[0]"
+);
+is_deeply(
+    $lower_dbi->[1],
+    [ 'red%', '123', '2009-01-01' ],
+    "lower_query string"
 );

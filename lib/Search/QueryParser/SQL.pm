@@ -8,7 +8,7 @@ use Search::QueryParser::SQL::Query;
 use Search::QueryParser::SQL::Column;
 use Scalar::Util qw( blessed );
 
-our $VERSION = '0.009';
+our $VERSION = '0.010';
 
 my $debug = $ENV{PERL_DEBUG} || 0;
 
@@ -131,6 +131,12 @@ I<Optional>
 The SQL operator to use for wildcard query strings. The default is
 C<ILIKE>.
 
+=item lower
+
+I<Optional>
+
+Wrap the C<LOWER()> function around column names for case-insensitive comparison.
+
 =item column_class
 
 I<Optional>
@@ -160,6 +166,7 @@ sub new {
     $self->{fuzzify2}      = delete $args->{fuzzify2}      || 0;
     $self->{strict}        = delete $args->{strict}        || 0;
     $self->{like}          = delete $args->{like}          || 'ILIKE';
+    $self->{lower}         = delete $args->{lower}         || 0;
     $self->{column_class}  = delete $args->{column_class}
         || 'Search::QueryParser::SQL::Column';
 

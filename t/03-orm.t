@@ -1,8 +1,9 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
-use Test::More tests => 26;
+use Test::More tests => 32;
 use Data::Dump qw( dump );
+
 use_ok('Search::QueryParser::SQL');
 
 ok( my $parser = Search::QueryParser::SQL->new(
@@ -192,6 +193,38 @@ is_deeply(
     "parser4_query string"
 );
 
+# lower
+ok( my $lower_parser = Search::QueryParser::SQL->new(
+        columns => {
+            foo => 'char',
+            bar => 'int',
+            dt  => 'datetime'
+        },
+        lower => 1,
+    ),
+    "lower_parser"
+);
+
+ok( my $lower_query = $lower_parser->parse(
+        "foo = red* and bar = 123* and dt = 2009-01-01*", 1
+    ),
+    "parse lower_query"
+);
+
+$rdbo = $lower_query->rdbo;
+
+#warn dump $rdbo;
+is_deeply(
+    $rdbo,
+    [   "AND",
+        [   [ \'lower(foo) ILIKE lower(?)' => 'red%', ],
+            "bar" => { ">=" => 123 },
+            "dt"  => { ">=" => "2009-01-01" },
+        ],
+    ],
+    "lower_query string"
+);
+
 ###################
 ## dbic
 ## see https://rt.cpan.org/Ticket/Display.html?id=87287
@@ -224,3 +257,34 @@ is_deeply(
     ],
     "->dbic structure"
 );
+
+# lower feature
+ok( my $lower_dbic_qp = Search::QueryParser::SQL->new(
+        columns  => [ 'table1.column1', 'table1.column2' ],
+        like     => 'LIKE',
+        fuzzify2 => 1,
+        lower    => 1,
+    ),
+    "lower_dbic_qp"
+);
+ok( my $lower_dbic_query = $lower_dbic_qp->parse( "butter -milk", 0 ),
+    "parse lower dbic query" );
+
+#diag( dump $lower_dbic_query->dbic );
+#diag( $lower_dbic_query->stringify );
+my $expected_lower = [
+    '-and' => [
+        "-or" => [
+            [ \"lower(table1.column1) LIKE lower(?)", '%butter%', ],
+            [ \"lower(table1.column2) LIKE lower(?)", '%butter%', ]
+        ],
+        "-and" => [
+            [ \"lower(table1.column1) NOT LIKE lower(?)", '%milk%', ],
+            [ \"lower(table1.column2) NOT LIKE lower(?)", '%milk%' ],
+        ],
+    ],
+
+];
+#diag( dump $expected_lower );
+is_deeply( $lower_dbic_query->dbic,
+    $expected_lower, "lower ->dbic structure" );
